@@ -142,6 +142,21 @@ class MyServer(BaseHTTPRequestHandler):
     def getPOSTBody(self):
         content_len = int(self.headers.get('Content-Length'))
         return self.rfile.read(content_len)
+    def do_GET(self):
+
+        if self.path == "/test":
+
+                self.send_response(200)
+                self.send_header("Content-type", "text/html")
+                self.end_headers()
+                self.wfile.write(
+                    bytes("<html><head><title>https://pythonbasics.org</title></head>", "utf-8"))
+                self.wfile.write(bytes("<p>Request: %s</p>" %
+                                 self.path, "utf-8"))
+                self.wfile.write(bytes("<body>", "utf-8"))
+                self.wfile.write(
+                    bytes("<p>Example Request</p>", "utf-8"))
+                self.wfile.write(bytes("</body></html>", "utf-8"))
 
     def do_POST(self):
         if self.path == "/registerServer":
@@ -233,11 +248,11 @@ if __name__ == "__main__":
     print("Server started http://%s:%s" % (hostName, serverPort))
     # setup some rhino instances when booting the server to be instantly ready. Should be matching the config settings!!!
     # When starting more than one instance at the same time, the danger lays in assinging the same port twice!
-    createRhinoRESTInstance()
-    createRhinoRESTInstance()
-    createRhinoRESTInstance()
-    createRhinoRESTInstance()
-    createRhinoRESTInstance()
+    #createRhinoRESTInstance()
+    #createRhinoRESTInstance()
+    #createRhinoRESTInstance()
+    #createRhinoRESTInstance()
+    #createRhinoRESTInstance()
     # Starting Watcher to see when an Rhino Instance was inactive for a certain period of time e.g 5min in order to manage ressources
     instanceWatcher = InstanceWatcher()
     instanceWatcher.daemon = True
