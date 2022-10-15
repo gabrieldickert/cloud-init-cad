@@ -34,10 +34,10 @@ serverPort = 8081
 rhinoServerCommand = "RhinoRESTAPIServerCommand"
 rhinoServerList = []
 
-# List of all Ports
-portList = [1024, 1025, 1026, 1027, 1028, 1029, 1030]
+# List of all Ports (Port 1024 is reserved for Port Forwading)
+portList = [1025, 1026, 1027, 1028, 1029, 1030]
 # List of all ports which are left available from the global Portlist
-availablePorts = [1024, 1025, 1026, 1027, 1028, 1029, 1030]
+availablePorts = [1025, 1026, 1027, 1028, 1029, 1030]
 
 
 def getFreePort():
@@ -69,7 +69,7 @@ def createRhinoRESTInstance():
     except:
         print("Could not remove port"+str(freePort)+" from free port list")
     print("Assign REST-Server with port"+str(freePort))
-    restServer = RhinoRESTServer(None, freePort, None)
+    restServer = RhinoRESTServer(None, None, freePort, None)
     rhinoServerList.append(restServer)
     # Start Rhino
     path = r"C:\Program Files\Rhino 7\System\Rhino.exe"
@@ -105,29 +105,34 @@ class InstanceWatcher(threading.Thread):
     def checkServerUsage(self):
         currentTime = datetime.now()
         inactiveServers = [server for server in self.instanceList if (
-            server.lastUsed + timedelta(seconds=30)) < currentTime]
+            server.lastUsed + timedelta(seconds=300)) < currentTime]
         for item in inactiveServers:
             try:
                 os.kill(item.pid, signal.SIGINT)
                 rhinoServerList.remove(item)
                 print("Killed Rhino Instance with PID:",
-                    str(item.pid), " and the Port:", str(item.port))
+                      str(item.pid), " and the Port:", str(item.port))
             except:
-                print("Could not kill Rhino Instance with PID:",str(item.pid), " and the Port:", str(item.port))
+                print("Could not kill Rhino Instance with PID:", str(
+                    item.pid), " and the Port:", str(item.port))
+
 
 class RhinoRESTServer:
 
-    def __init__(self, token, port, pid):
+    def __init__(self, token, host, port, pid):
         self.token = token
+        self.host = host
         self.port = port
         self.pid = pid
         self.ready = False
         # Creating Datetime
         self.lastUsed = datetime.now()
 
+
 class ThreadedHTTPServer(socketserver.ThreadingMixIn, HTTPServer):
     """Handle requests in a separate thread."""
     pass
+
 
 class MyServer(BaseHTTPRequestHandler):
     #protocol_version = 'HTTP/1.1'
@@ -142,27 +147,29 @@ class MyServer(BaseHTTPRequestHandler):
     def getPOSTBody(self):
         content_len = int(self.headers.get('Content-Length'))
         return self.rfile.read(content_len)
+
     def do_GET(self):
 
         if self.path == "/test":
 
-                self.send_response(200)
-                self.send_header("Content-type", "text/html")
-                self.end_headers()
-                self.wfile.write(
-                    bytes("<html><head><title>https://pythonbasics.org</title></head>", "utf-8"))
-                self.wfile.write(bytes("<p>Request: %s</p>" %
-                                 self.path, "utf-8"))
-                self.wfile.write(bytes("<body>", "utf-8"))
-                self.wfile.write(
-                    bytes("<p>Example Request</p>", "utf-8"))
-                self.wfile.write(bytes("</body></html>", "utf-8"))
+            self.send_response(200)
+            self.send_header("Content-type", "text/html")
+            self.end_headers()
+            self.wfile.write(
+                bytes("<html><head><title>https://pythonbasics.org</title></head>", "utf-8"))
+            self.wfile.write(bytes("<p>Request: %s</p>" %
+                             self.path, "utf-8"))
+            self.wfile.write(bytes("<body>", "utf-8"))
+            self.wfile.write(
+                bytes("<p>Example Request</p>", "utf-8"))
+            self.wfile.write(bytes("</body></html>", "utf-8"))
 
     def do_POST(self):
         if self.path == "/registerServer":
             print("REST-Server wants to register here")
             body = json.loads(self.getPOSTBody().decode("utf-8"))
             if body["ready"]:
+                print(self)
                 # Searching the Instance from the RESTRhino Wehere the port matches the submitted port
                 #!Server has to be created before it can be registered!
                 # Should find only one Server
@@ -170,6 +177,8 @@ class MyServer(BaseHTTPRequestHandler):
                     item for item in rhinoServerList if item.port == body["port"]]
                 server[0].ready = body["ready"]
                 server[0].lastUsed = datetime.now()
+                # Setting Hostname
+                server[0].host = self.client_address[0]
                 print("REST-Server with port" +
                       str(body["port"])+" is now ready?"+str(server[0].ready))
 
@@ -189,7 +198,7 @@ class MyServer(BaseHTTPRequestHandler):
             # Extract POST-Body Part from the Request
             content_len = int(self.headers.get('Content-Length'))
             post_body = self.rfile.read(content_len)
-            #print(post_body)
+            # print(post_body)
             path = r"C:\Program Files\Rhino 7\System\Rhino.exe"
 
             # Assuming Token is always provided since the request gets forwared form the main api server
@@ -223,12 +232,11 @@ class MyServer(BaseHTTPRequestHandler):
             """while assignedServer.ready is not True:
                 print("Waiting Thread:"+str(threading.currentThread().getName()))
                 time.sleep(1)"""
-            
-            
+
             if assignedServer.ready:
                 # Only REDIRECT When Rhino has been started and Plugin informed this Server that its ready to serve
-                res = requestSession.post("http://localhost:"+str(assignedServer.port)+"/createGear",
-                                        headers=self.headers, data=post_body, verify=False)
+                res = requestSession.post("http://"+str(assignedServer.host)+":"+str(assignedServer.port)+"/createGear",
+                                          headers=self.headers, data=post_body, verify=False)
 
                 self.send_response(res.status_code)
                 # self.send_header("Transfer-Encoding","chunked") is not supported in this Python-Server Version with HTTP 1 but HTTP 1/1 is not working
@@ -242,17 +250,19 @@ class MyServer(BaseHTTPRequestHandler):
                 self.end_headers()
 
 
-
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=1,
+                    help="The number of the available Rhino Instance at startup")
+    args = parser.parse_args()
+
     webServer = ThreadedHTTPServer((hostName, serverPort), MyServer)
     print("Server started http://%s:%s" % (hostName, serverPort))
-    # setup some rhino instances when booting the server to be instantly ready. Should be matching the config settings!!!
-    # When starting more than one instance at the same time, the danger lays in assinging the same port twice!
-    #createRhinoRESTInstance()
-    #createRhinoRESTInstance()
-    #createRhinoRESTInstance()
-    #createRhinoRESTInstance()
-    #createRhinoRESTInstance()
+    # setup some rhino instances when booting the server to be instantly ready.
+    #The amount depends heavily on the VM capabilities
+    for i in range(0,args.rhinoInstanceStartNumber):
+        createRhinoRESTInstance()
+
     # Starting Watcher to see when an Rhino Instance was inactive for a certain period of time e.g 5min in order to manage ressources
     instanceWatcher = InstanceWatcher()
     instanceWatcher.daemon = True
