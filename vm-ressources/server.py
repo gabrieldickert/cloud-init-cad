@@ -16,7 +16,7 @@ from datetime import date, datetime, timedelta
 import threading
 import argparse
 import socketserver
-
+import psutil
 # Since Starting the Rhino-Server can take some time an retry-mechanism is implemented
 requestSession = requests.Session()
 retries = Retry(total=5,
@@ -25,11 +25,12 @@ retries = Retry(total=5,
 
 requestSession.mount('http://', HTTPAdapter(max_retries=retries))
 
-# NOTE: needs to gets executed in admin mode otherwise rhino rest api cant be started and crashed
+# NOTE: needs to gets executed in admin mode otherwise rhino rest api cant be started and crashed (is always given in the Cloud)
 # Hostname and serverport for this Service-Server which is based on every VM
 hostName = "localhost"
 serverPort = 8081
-
+alwaysAvailableInstanceCount = 0
+instanceInactivityAmount = 180
 # List of all  RhinoRESTServer Instances on this machine
 rhinoServerCommand = "RhinoRESTAPIServerCommand"
 rhinoServerList = []
@@ -98,14 +99,14 @@ class InstanceWatcher(threading.Thread):
     def run(self):
         while True:
             # Checking Every x Seconds if Rhino Instance is still used
-            time.sleep(5)
+            time.sleep(1)
             print("Checking Instances")
             self.checkServerUsage()
 
     def checkServerUsage(self):
         currentTime = datetime.now()
         inactiveServers = [server for server in self.instanceList if (
-            server.lastUsed + timedelta(seconds=300)) < currentTime]
+            server.lastUsed + timedelta(seconds=instanceInactivityAmount)) < currentTime]
         for item in inactiveServers:
             try:
                 os.kill(item.pid, signal.SIGINT)
@@ -115,6 +116,12 @@ class InstanceWatcher(threading.Thread):
             except:
                 print("Could not kill Rhino Instance with PID:", str(
                     item.pid), " and the Port:", str(item.port))
+        
+        #If current Rhino Instances is lower then desired spawn new instances
+        if len(rhinoServerList) < alwaysAvailableInstanceCount:
+            diff = alwaysAvailableInstanceCount - len(rhinoServerList)
+            for i in range(0,diff):
+                createRhinoRESTInstance()
 
 
 class RhinoRESTServer:
@@ -149,23 +156,25 @@ class MyServer(BaseHTTPRequestHandler):
         return self.rfile.read(content_len)
 
     def do_GET(self):
-
-        if self.path == "/test":
-
+        # Returns the Amount of current active Sessions on this Machine
+        if self.path == "/api/construction/sessions/all":
             self.send_response(200)
-            self.send_header("Content-type", "text/html")
+            self.send_header("Content-type", "application/json")
             self.end_headers()
-            self.wfile.write(
-                bytes("<html><head><title>https://pythonbasics.org</title></head>", "utf-8"))
-            self.wfile.write(bytes("<p>Request: %s</p>" %
-                             self.path, "utf-8"))
-            self.wfile.write(bytes("<body>", "utf-8"))
-            self.wfile.write(
-                bytes("<p>Example Request</p>", "utf-8"))
-            self.wfile.write(bytes("</body></html>", "utf-8"))
+            self.wfile.write(bytes(json.dumps(
+                [rhinoInstance.__dict__ for rhinoInstance in rhinoServerList], indent=4, sort_keys=True, default=str), "utf-8"))
+        #Returns the Status of the Server
+        if self.path == "/api/status":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(bytes(json.dumps({"activeSessions":len(rhinoServerList),"sessionLimit":4,"isActive": True,"usageCPU":psutil.cpu_percent()}), "utf-8"))
 
     def do_POST(self):
-        if self.path == "/registerServer":
+        #Adds a construction session from the outside
+        if self.path =="/api/construction/sessions/add":
+            pass
+        elif self.path == "/registerServer":
             print("REST-Server wants to register here")
             body = json.loads(self.getPOSTBody().decode("utf-8"))
             if body["ready"]:
@@ -194,7 +203,7 @@ class MyServer(BaseHTTPRequestHandler):
                     bytes("<p>This is an example web server.</p>", "utf-8"))
                 self.wfile.write(bytes("</body></html>", "utf-8"))
 
-        elif self.path == "/createGear":
+        elif self.path == "/api/createGear":
             # Extract POST-Body Part from the Request
             content_len = int(self.headers.get('Content-Length'))
             post_body = self.rfile.read(content_len)
@@ -253,16 +262,17 @@ class MyServer(BaseHTTPRequestHandler):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--rhinoInstanceStartNumber", type=int, default=1,
-                    help="The number of the available Rhino Instance at startup")
+                        help="The number of the available Rhino Instance at startup")
     args = parser.parse_args()
 
     webServer = ThreadedHTTPServer((hostName, serverPort), MyServer)
     print("Server started http://%s:%s" % (hostName, serverPort))
     # setup some rhino instances when booting the server to be instantly ready.
-    #The amount depends heavily on the VM capabilities
-    for i in range(0,args.rhinoInstanceStartNumber):
+    # The amount depends heavily on the VM capabilities
+    for i in range(0, args.rhinoInstanceStartNumber):
         createRhinoRESTInstance()
-
+    #Settings Amount of always available Instances 
+    alwaysAvailableInstanceCount = args.rhinoInstanceStartNumber
     # Starting Watcher to see when an Rhino Instance was inactive for a certain period of time e.g 5min in order to manage ressources
     instanceWatcher = InstanceWatcher()
     instanceWatcher.daemon = True
