@@ -173,7 +173,7 @@ class MyServer(BaseHTTPRequestHandler):
     def do_POST(self):
         #Adds a construction session from the outside
         if self.path =="/api/construction/sessions/add":
-            pass
+            createRhinoRESTInstance()
         elif self.path == "/registerServer":
             print("REST-Server wants to register here")
             body = json.loads(self.getPOSTBody().decode("utf-8"))
