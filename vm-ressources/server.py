@@ -156,6 +156,12 @@ class MyServer(BaseHTTPRequestHandler):
         return self.rfile.read(content_len)
 
     def do_GET(self):
+        #Standard Path for Health-Probes
+        if self.path=="/":
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(bytes(json.dumps({"status":"ok"}), "utf-8"))
         # Returns the Amount of current active Sessions on this Machine
         if self.path == "/api/construction/sessions/all":
             self.send_response(200)
@@ -171,7 +177,7 @@ class MyServer(BaseHTTPRequestHandler):
             self.wfile.write(bytes(json.dumps({"activeSessions":len(rhinoServerList),"sessionLimit":4,"isActive": True,"usageCPU":psutil.cpu_percent()}), "utf-8"))
 
     def do_POST(self):
-        #Adds a construction session from the outside
+        #Adds a construction session from the outside, needed?
         if self.path =="/api/construction/sessions/add":
             createRhinoRESTInstance()
         elif self.path == "/registerServer":
@@ -203,7 +209,7 @@ class MyServer(BaseHTTPRequestHandler):
                     bytes("<p>This is an example web server.</p>", "utf-8"))
                 self.wfile.write(bytes("</body></html>", "utf-8"))
 
-        elif self.path == "/api/createGear":
+        elif self.path == "/api/construction/gear/createGear":
             # Extract POST-Body Part from the Request
             content_len = int(self.headers.get('Content-Length'))
             post_body = self.rfile.read(content_len)
