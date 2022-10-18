@@ -34,7 +34,7 @@ instanceInactivityAmount = 180
 # List of all  RhinoRESTServer Instances on this machine
 rhinoServerCommand = "RhinoRESTAPIServerCommand"
 rhinoServerList = []
-
+roundRobinCounter = 0
 # List of all Ports (Port 1024 is reserved for Port Forwading)
 portList = [1025, 1026, 1027, 1028, 1029, 1030]
 # List of all ports which are left available from the global Portlist
@@ -207,14 +207,36 @@ class MyServer(BaseHTTPRequestHandler):
             # Extract POST-Body Part from the Request
             content_len = int(self.headers.get('Content-Length'))
             post_body = self.rfile.read(content_len)
-            # print(post_body)
-            path = r"C:\Program Files\Rhino 7\System\Rhino.exe"
 
             # Assuming Token is always provided since the request gets forwared form the main api server
             bearerToken = self.headers.get("authorization")
+            global roundRobinCounter
+            assignedServer = rhinoServerList[roundRobinCounter%alwaysAvailableInstanceCount]
 
-            assignedServer = None
+            #Increase Value for Round Robin
+            roundRobinCounter += 1
 
+            #Resetting Counter to 0 
+            if  roundRobinCounter == alwaysAvailableInstanceCount:
+                roundRobinCounter = 0
+            # Only REDIRECT When Rhino has been started and Plugin informed this Server that its ready to serve
+            if assignedServer.ready:
+                    #Update Server usage
+                    assignedServer.lastUsed = datetime.now()
+                    res = requestSession.post("http://"+str(assignedServer.host)+":"+str(assignedServer.port)+"/createGear",
+                                            headers=self.headers, data=post_body, verify=False)
+                    
+                    self.send_response(res.status_code)
+                    # self.send_header("Transfer-Encoding","chunked") is not supported in this Python-Server Version with HTTP 1 but HTTP 1/1 is not working
+                    for k, v in res.headers.items():
+                        if "Transfer-Encoding" not in k:
+                            self.send_header(str(k), str(v))
+                    self.end_headers()
+                    self.wfile.write(bytes(res.content))
+            else:
+                self.send_response(500)
+                self.end_headers()
+            """
             # Finding Server which is related to this token otherwise if no server is found we take one from the available pool
             bearerServer = [
                 item for item in rhinoServerList if item.token == bearerToken]
@@ -238,10 +260,6 @@ class MyServer(BaseHTTPRequestHandler):
             print("Request from"+bearerToken +
                   "for Server"+str(assignedServer.port))
 
-            """while assignedServer.ready is not True:
-                print("Waiting Thread:"+str(threading.currentThread().getName()))
-                time.sleep(1)"""
-
             if assignedServer.ready:
                 # Only REDIRECT When Rhino has been started and Plugin informed this Server that its ready to serve
                 res = requestSession.post("http://"+str(assignedServer.host)+":"+str(assignedServer.port)+"/createGear",
@@ -256,7 +274,7 @@ class MyServer(BaseHTTPRequestHandler):
                 self.wfile.write(bytes(res.content))
             else:
                 self.send_response(500)
-                self.end_headers()
+                self.end_headers()"""
 
 
 if __name__ == "__main__":
