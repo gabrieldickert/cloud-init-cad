@@ -19,7 +19,7 @@ import socketserver
 import psutil
 # Since Starting the Rhino-Server can take some time an retry-mechanism is implemented
 requestSession = requests.Session()
-retries = Retry(total=5,
+retries = Retry(total=10,
                 backoff_factor=0.1,
                 status_forcelist=[500, 502, 503, 504])
 
@@ -30,7 +30,7 @@ requestSession.mount('http://', HTTPAdapter(max_retries=retries))
 hostName = "localhost"
 serverPort = 8081
 alwaysAvailableInstanceCount = 0
-instanceInactivityAmount = 180
+instanceInactivityAmount = 10
 # List of all  RhinoRESTServer Instances on this machine
 rhinoServerCommand = "RhinoRESTAPIServerCommand"
 rhinoServerList = []
@@ -40,7 +40,7 @@ portList = [1025, 1026, 1027, 1028, 1029, 1030]
 # List of all ports which are left available from the global Portlist
 availablePorts = [1025, 1026, 1027, 1028, 1029, 1030]
 
-
+#Retrieves a Free Port from the List of available Ports
 def getFreePort():
 
     # getting ip-address of host
@@ -53,14 +53,17 @@ def getFreePort():
             serv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
             serv.bind((ip, port))  # bind socket with address
+
+            print("PORT IS FREE",port)
             return port
         except:
 
             print('[OPEN] Port open :', port)  # print open port number
 
         serv.close()  # close connection
-
-
+    
+    return None
+#Creates a new Rhino Instance
 def createRhinoRESTInstance():
     # Server have no token whens we create them since no user is assigned yet to this server
     freePort = getFreePort()
@@ -69,12 +72,11 @@ def createRhinoRESTInstance():
         availablePorts.remove(freePort)
     except:
         print("Could not remove port"+str(freePort)+" from free port list")
+        return None
     print("Assign REST-Server with port"+str(freePort))
     restServer = RhinoRESTServer(None, None, freePort, None)
     rhinoServerList.append(restServer)
     # Start Rhino
-    path = r"C:\Program Files\Rhino 7\System\Rhino.exe"
-
     command = '\"C:\\Program Files\\Rhino 7\\System\\Rhino.exe\" /nosplash /runscript=\"_-' + \
         rhinoServerCommand+' '+str(freePort)+'\"'
     proc = subprocess.Popen(command, universal_newlines=True, shell=False,
@@ -82,9 +84,6 @@ def createRhinoRESTInstance():
     print("assigned rhino pid"+str(proc.pid))
     # Get PID from Rhino Instance
     restServer.pid = proc.pid
-    # time.sleep(5)
-    # os.kill(proc.pid,signal.SIGINT)
-    #print("killing over for pid"+str(proc.pid))
 
     return restServer
 
@@ -100,17 +99,27 @@ class InstanceWatcher(threading.Thread):
         while True:
             # Checking Every x Seconds if Rhino Instance is still used
             time.sleep(1)
-            print("Checking Instances")
+            print("Checking Rhino Instances...")
             self.checkServerUsage()
 
     def checkServerUsage(self):
         currentTime = datetime.now()
         inactiveServers = [server for server in self.instanceList if (
             server.lastUsed + timedelta(seconds=instanceInactivityAmount)) < currentTime]
+        global availablePorts
         for item in inactiveServers:
             try:
-                os.kill(item.pid, signal.SIGINT)
+                parent = psutil.Process(item.pid)
+                for child in parent.children():
+                    child.kill()
+                parent.kill()
+                #Remove Instance from List
                 rhinoServerList.remove(item)
+                #Add Port back to availbale Port List
+                availablePorts.append(item.port)
+                #Could be sorted to start again at first Port but we iterate through
+                #availablePorts = sorted(availablePorts)
+                print(availablePorts)
                 print("Killed Rhino Instance with PID:",
                       str(item.pid), " and the Port:", str(item.port))
             except:
@@ -156,7 +165,7 @@ class MyServer(BaseHTTPRequestHandler):
         return self.rfile.read(content_len)
 
     def do_GET(self):
-        #Standard Path for Health-Probes
+        #Standard Path for Health-Probes for Load Balancer
         if self.path=="/":
             self.send_response(200)
             self.send_header("Content-type", "application/json")
@@ -180,6 +189,7 @@ class MyServer(BaseHTTPRequestHandler):
         #Adds a construction session from the outside, needed?
         if self.path =="/api/construction/sessions/add":
             createRhinoRESTInstance()
+        #Endpoint for Registering an Rhino Instance at this Sercer
         elif self.path == "/registerServer":
             print("REST-Server wants to register here")
             body = json.loads(self.getPOSTBody().decode("utf-8"))
@@ -201,27 +211,22 @@ class MyServer(BaseHTTPRequestHandler):
                 self.send_header("Content-type", "text/html")
                 self.end_headers()
                 self.wfile.write(
-                    bytes("<html><head><title>https://pythonbasics.org</title></head>", "utf-8"))
-                self.wfile.write(bytes("<p>Request: %s</p>" %
-                                 self.path, "utf-8"))
-                self.wfile.write(bytes("<body>", "utf-8"))
-                self.wfile.write(
-                    bytes("<p>This is an example web server.</p>", "utf-8"))
-                self.wfile.write(bytes("</body></html>", "utf-8"))
+                    bytes("<html><head><title>Success</title></head>", "utf-8"))
 
+        #Endpoint for Creating a Gear
         elif self.path == "/api/construction/gear/createGear":
+            #Use global Round Robin Counter
+            global roundRobinCounter
             # Extract POST-Body Part from the Request
             content_len = int(self.headers.get('Content-Length'))
             post_body = self.rfile.read(content_len)
 
             # Assuming Token is always provided since the request gets forwared form the main api server
             bearerToken = self.headers.get("authorization")
-            global roundRobinCounter
-            assignedServer = rhinoServerList[roundRobinCounter%alwaysAvailableInstanceCount]
 
+            assignedServer = rhinoServerList[roundRobinCounter%alwaysAvailableInstanceCount]
             #Increase Value for Round Robin
             roundRobinCounter += 1
-
             #Resetting Counter to 0 
             if  roundRobinCounter == alwaysAvailableInstanceCount:
                 roundRobinCounter = 0
@@ -291,8 +296,8 @@ if __name__ == "__main__":
     
     webServer = ThreadedHTTPServer((hostName, serverPort), MyServer)
     print("Server started http://%s:%s" % (hostName, serverPort))
-    # setup some rhino instances when booting the server to be instantly ready.
-    # The amount depends heavily on the VM capabilities
+    """setup some rhino instances when booting the server to be instantly ready.
+    The amount depends heavily on the VM capabilities"""
     for i in range(0, args.rhinoInstanceStartNumber):
         createRhinoRESTInstance()
     #Settings Amount of always available Instances 
