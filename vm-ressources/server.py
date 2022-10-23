@@ -30,7 +30,7 @@ requestSession.mount('http://', HTTPAdapter(max_retries=retries))
 hostName = "localhost"
 serverPort = 8081
 alwaysAvailableInstanceCount = 0
-instanceInactivityAmount = 10
+instanceInactivityAmount = 300
 # List of all  RhinoRESTServer Instances on this machine
 rhinoServerCommand = "RhinoRESTAPIServerCommand"
 rhinoServerList = []
