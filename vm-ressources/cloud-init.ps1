@@ -9,6 +9,16 @@ $env:Path = [System.Environment]::ExpandEnvironmentVariables([System.Environment
 Invoke-WebRequest -Uri "https://files.mcneel.com/dujour/exe/20220912/rhino_de-de_7.22.22255.05001.exe" -OutFile "rhino.exe"
 #Licening how to automate? => ZOO_Server #rhino.exe -package -quiet -norestart -passive LICENSE_METHOD=STANDALONE LICENSE_KEY=RH70-R6GK-5GT0-3R0A-8R8L-1476 INSTALL_DE=1
 ./rhino.exe -package -quiet -norestart -passive LICENSE_METHOD=ZOO ZOO_SERVER=10.0.20.6 INSTALL_DE=1 SEND_STATISTICS=0 | Out-Null
+#Inital Start of Rhino with EditPythonScript to ensure python works
+$Process = [Diagnostics.Process]::Start("C:\Program Files\Rhino 7\System\Rhino.exe ","/nosplash /runscript=""_-EditPythonScript Debugging=On _Enter _Enter""")          
+Start-Sleep -Seconds 30   
+$id = $Process.Id                        
+try {            
+    Stop-Process -Id $id -ErrorAction stop            
+    Write-Host "Successfully killed the process with ID: $ID"            
+} catch {            
+    Write-Host "Failed to kill the process"            
+}
 #Download REST-Plugin
 $restPluginName = "restservice.rhi"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/rhinorestservice.rhi" -OutFile $restPluginName
