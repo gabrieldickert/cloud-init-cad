@@ -24,8 +24,8 @@ try {
     $exeName ="HelloWorld.exe"
     $dll = "RhinoInside.dll"
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/server-test.py" -OutFile $serverFileName
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/server-test.HelloWorld.exe" -OutFile $exeName
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/server-test.RhinoInside.dll" -OutFile $dll
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/HelloWorld.exe" -OutFile $exeName
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/RhinoInside.dll" -OutFile $dll
     #Install Requirements for Server
     pip install requests
     pip install psutil
