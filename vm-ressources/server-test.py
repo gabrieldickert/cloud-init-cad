@@ -130,8 +130,7 @@ class InstanceWatcher(threading.Thread):
         if len(rhinoServerList) < alwaysAvailableInstanceCount:
             diff = alwaysAvailableInstanceCount - len(rhinoServerList)
             for i in range(0,diff):
-                pass
-                #createRhinoRESTInstance()
+                createRhinoRESTInstance()
 
 
 class RhinoRESTServer:
@@ -303,8 +302,7 @@ if __name__ == "__main__":
     """setup some rhino instances when booting the server to be instantly ready.
     The amount depends heavily on the VM capabilities"""
     for i in range(0, args.rhinoInstanceStartNumber):
-        pass
-        #createRhinoRESTInstance()
+        createRhinoRESTInstance()
     #Settings Amount of always available Instances 
     alwaysAvailableInstanceCount = args.rhinoInstanceStartNumber
     # Starting Watcher to see when an Rhino Instance was inactive for a certain period of time e.g 5min in order to manage ressources
