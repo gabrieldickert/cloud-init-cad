@@ -169,7 +169,7 @@ class MyServer(BaseHTTPRequestHandler):
         #Standard Path for Health-Probes for Load Balancer
         if self.path=="/":
             #proc = subprocess.Popen("HelloWorld.exe", universal_newlines=True, shell=False,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-            proc = subprocess.Popen("python inside.py", universal_newlines=True, shell=False,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            #proc = subprocess.Popen("python inside.py", universal_newlines=True, shell=False,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
@@ -217,7 +217,8 @@ class MyServer(BaseHTTPRequestHandler):
                     bytes("<html><head><title>Success</title></head>", "utf-8"))
 
         #Endpoint for Creating a Gear
-        elif self.path == "/api/construction/gear/createGear":
+        # "/api/construction/gear/createGear
+        elif self.path == "/api/test":
             #Use global Round Robin Counter
             global roundRobinCounter
             # Extract POST-Body Part from the Request
@@ -237,7 +238,7 @@ class MyServer(BaseHTTPRequestHandler):
             if assignedServer.ready:
                     #Update Server usage
                     assignedServer.lastUsed = datetime.now()
-                    res = requestSession.post("http://"+str(assignedServer.host)+":"+str(assignedServer.port)+"/createGear",
+                    res = requestSession.post("http://"+str(assignedServer.host)+":"+str(assignedServer.port)+"/test",
                                             headers=self.headers, data=post_body, verify=False)
                     
                     self.send_response(res.status_code)

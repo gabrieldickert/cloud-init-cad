@@ -38,6 +38,9 @@ try {
     exit 0 
 }
 catch {            
-    Write-Host "Failed to kill the process"            
+    Write-Host "Failed to kill the process"
+    
+    exit 0
 }
 
+exit 0
