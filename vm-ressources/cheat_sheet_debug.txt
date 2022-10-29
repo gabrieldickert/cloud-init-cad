@@ -1,0 +1,21 @@
+ C:\Packages\Plugins\Microsoft.Compute.CustomScriptExtension\1.10.12\Downloads\1
+
+taskkill /f /t /im Rhino*
+
+scp C:\Users\Gabriel\AppData\Roaming\McNeel\Rhinoceros\7.0\Plug-ins\RhinoRESTAPIServer (23dd536e-6159-4f92-a885-e480244fa6b1)\1.0.0.0\Debug\net48\rhinogears.rhi cad-master@104.40.226.37
+
+
+scp C:\Users\Gabriel\AppData\Roaming\McNeel\Rhinoceros\7.0\Plug-ins\RhinoRESTAPIServer (23dd536e-6159-4f92-a885-e480244fa6b1)\1.0.0.0\Debug\net48\rhinogears.rhi cad-master@104.40.226.37:C:\Packages\Plugins\Microsoft.Compute.CustomScriptExtension\1.10.12\Downloads\1
+
+scp C:\Users\Gabriel\Desktop\rhinogears.rhi cad-master@104.40.226.37:C:\Packages\Plugins\Microsoft.Compute.CustomScriptExtension\1.10.12\Downloads\1
+
+
+    Start-Process -FilePath "C:\Program Files\McNeel\Rhino Installer Engine\x64\rhiexec.exe" -ArgumentList  "$( (Get-Item .).FullName) - $("server.rhi")", "/admin /silent" -Wait
+{
+"type":"Bevel",
+"height":10.0,
+"teeth":12,
+"module":3,
+"pressureAngle":43.2,
+"coneAngle":175.32
+}

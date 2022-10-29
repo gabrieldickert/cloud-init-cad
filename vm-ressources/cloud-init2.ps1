@@ -21,17 +21,13 @@ try {
     netsh interface portproxy add v4tov4 listenport=1024 listenaddress=0.0.0.0 connectport=8081 connectaddress=127.0.0.1
     #Download Server Code
     $serverFileName = "server.py"
-    $insideFileName = "inside.py"
-    $exeName ="HelloWorld.exe"
-    $dll = "RhinoInside.dll"
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/server-test.py" -OutFile $serverFileName
-    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/inside.py" -OutFile $insideFileName
     #Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/HelloWorld.exe" -OutFile $exeName
     #Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/RhinoInside.dll" -OutFile $dll
     #Install Requirements for Server
     pip install requests
     pip install psutil
-    pip install rhinoinside
+    #pip install rhinoinside
     #Start Server in new window
     start-process  powershell.exe -ArgumentList "-noExit", "-command", "python server.py"
     #Hopefully Working!
