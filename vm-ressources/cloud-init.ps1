@@ -6,7 +6,7 @@ Invoke-WebRequest -Uri "https://www.python.org/ftp/python/3.7.4/python-3.7.4-amd
 $env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
 $env:Path = [System.Environment]::ExpandEnvironmentVariables([System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User"))
 #download rhino
-Invoke-WebRequest -Uri "https://files.mcneel.com/dujour/exe/20220912/rhino_de-de_7.22.22255.05001.exe" -OutFile "rhino.exe"
+Invoke-WebRequest -Uri "https://files.mcneel.com/dujour/exe/20221009/rhino_de-de_7.23.22282.13001.exe" -OutFile "rhino.exe"
 #Licening how to automate? => ZOO_Server #rhino.exe -package -quiet -norestart -passive LICENSE_METHOD=STANDALONE LICENSE_KEY=RH70-R6GK-5GT0-3R0A-8R8L-1476 INSTALL_DE=1
 ./rhino.exe -package -quiet -norestart -passive LICENSE_METHOD=ZOO ZOO_SERVER=10.0.20.6 INSTALL_DE=1 SEND_STATISTICS=0 | Out-Null
 #Inital Start of Rhino with EditPythonScript to ensure python works
@@ -24,8 +24,12 @@ try {
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/rhinogears.rhi" -OutFile $modulPluginName
     #Install both Plugins
     $currentDir = (Get-Item .).FullName#pwd
-    Start-Process -FilePath "C:\Program Files\McNeel\Rhino Installer Engine\x64\rhiexec.exe" -ArgumentList  "$($currentDir) - $($restPluginName)", "/admin /silent" -Wait
-    Start-Process -FilePath "C:\Program Files\McNeel\Rhino Installer Engine\x64\rhiexec.exe" -ArgumentList  "$($currentDir) - $($modulPluginName)", "/admin /silent" -Wait
+    #Install for this user
+    Start-Process -FilePath "C:\Program Files\McNeel\Rhino Installer Engine\x64\rhiexec.exe" -ArgumentList  "$($currentDir)\$($restPluginName)", "/silent" -Wait
+    Start-Process -FilePath "C:\Program Files\McNeel\Rhino Installer Engine\x64\rhiexec.exe" -ArgumentList  "$($currentDir)\$($modulPluginName)", "/silent" -Wait
+    #Try for all users aswell
+    Start-Process -FilePath "C:\Program Files\McNeel\Rhino Installer Engine\x64\rhiexec.exe" -ArgumentList  "$($currentDir)\$($restPluginName)", "/admin","/silent" -Wait
+    Start-Process -FilePath "C:\Program Files\McNeel\Rhino Installer Engine\x64\rhiexec.exe" -ArgumentList  "$($currentDir)\$($modulPluginName)", "/admin", "/silent" -Wait
     #Add Firewall Rule to Match Azure Rule
     netsh advfirewall firewall add rule name="InBoundRule1024" dir=in action=allow protocol=TCP localport=1024
     #Set Port Forwading Rules (Every Request on port 1024 gets forwarded to port 8081)
