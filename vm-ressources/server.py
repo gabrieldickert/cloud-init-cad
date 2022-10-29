@@ -290,7 +290,7 @@ class MyServer(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=1,
+    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=2,
                         help="The number of the available Rhino Instance at startup")
     args = parser.parse_args()
     
