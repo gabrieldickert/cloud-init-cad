@@ -19,6 +19,17 @@ try {
     netsh advfirewall firewall add rule name="InBoundRule1024" dir=in action=allow protocol=TCP localport=1024
     #Set Port Forwading Rules (Every Request on port 1024 gets forwarded to port 8081)
     netsh interface portproxy add v4tov4 listenport=1024 listenaddress=0.0.0.0 connectport=8081 connectaddress=127.0.0.1
+    #Download current used Rhino Modul Plugin
+    $modulPluginName = "rhinogears.rhi"
+    Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/rhinogears.rhi" -OutFile $modulPluginName
+    #Install both Plugins
+    $currentDir = (Get-Item .).FullName#pwd
+    Start-Process -FilePath "C:\Program Files\McNeel\Rhino Installer Engine\x64\rhiexec.exe" -ArgumentList  "$($currentDir) - $($modulPluginName)", "/admin /silent" -Wait
+
+    $rhinoWorker = "RhinoWorker.zip"
+    Invoke-WebRequest -Uri "https://github.com/gabrieldickert/cloud-init-cad/blob/main/vm-ressources/RhinoWorker.zip?raw=true" -OutFile $rhinoWorker
+    #Extract RhinoWorker in current dir
+    Expand-Archive $rhinoWorker -DestinationPath ./
     #Download Server Code
     $serverFileName = "server.py"
     Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/server-test.py" -OutFile $serverFileName

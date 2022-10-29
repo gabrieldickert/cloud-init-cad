@@ -167,7 +167,7 @@ class MyServer(BaseHTTPRequestHandler):
     def do_GET(self):
         #Standard Path for Health-Probes for Load Balancer
         if self.path=="/":
-            #proc = subprocess.Popen("HelloWorld.exe", universal_newlines=True, shell=False,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            proc = subprocess.Popen("WindowsFormsApp1.exe", universal_newlines=True, shell=False,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             #proc = subprocess.Popen("python inside.py", universal_newlines=True, shell=False,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self.send_response(200)
             self.send_header("Content-type", "application/json")
@@ -293,7 +293,7 @@ class MyServer(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=1,
+    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=0,
                         help="The number of the available Rhino Instance at startup")
     args = parser.parse_args()
     
