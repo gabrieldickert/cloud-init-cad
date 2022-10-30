@@ -165,9 +165,14 @@ class MyServer(BaseHTTPRequestHandler):
         return self.rfile.read(content_len)
 
     def do_GET(self):
-        #Standard Path for Health-Probes for Load Balancer
         if self.path=="/":
             proc = subprocess.Popen("WindowsFormsApp1.exe", universal_newlines=True, shell=False,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+            self.send_response(200)
+            self.send_header("Content-type", "application/json")
+            self.end_headers()
+            self.wfile.write(bytes(json.dumps({"status":"files created"}), "utf-8"))
+        #Standard Path for Health-Probes for Load Balancer
+        if self.path=="/":
             #proc = subprocess.Popen("python inside.py", universal_newlines=True, shell=False,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             self.send_response(200)
             self.send_header("Content-type", "application/json")
