@@ -19,3 +19,8 @@ scp C:\Users\Gabriel\Desktop\rhinogears.rhi cad-master@104.40.226.37:C:\Packages
 "pressureAngle":43.2,
 "coneAngle":175.32
 }
+	
+$currentDir = (Get-Item .).FullName#pwd
+ Start-Process -FilePath "C:\Program Files\McNeel\Rhino Installer Engine\x64\rhiexec.exe" -ArgumentList  "$($currentDir)\$("restserver.rhi")", "/silent" -Wait
+
+scp C:\Users\Gabriel\AppData\Roaming\McNeel\Rhinoceros\7.0\Plug-ins\RhinoRESTAPIServer (23dd536e-6159-4f92-a885-e480244fa6b1)\1.0.0.0\Debug\net48 cad-master@104.40.226.37:C:\Packages\Plugins\Microsoft.Compute.CustomScriptExtension\1.10.12\Downloads\1
