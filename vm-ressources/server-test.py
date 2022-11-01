@@ -290,7 +290,7 @@ if __name__ == "__main__":
         #createRhinoRESTInstance()
     
     #Opens the "Main" Rhino Instance Program
-    proc = subprocess.Popen("WindowsFormsApp1.exe", shell=True)
+    proc = subprocess.Popen("AzureConform.exe", shell=True)
     rhinoInstanceManager = RhinoInstanceManager(proc.pid)
     print("Started Rhino Instance Manager at PID"+str(proc.pid))
     #Settings Amount of always available Instances 
