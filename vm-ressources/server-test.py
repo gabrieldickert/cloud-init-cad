@@ -33,6 +33,7 @@ alwaysAvailableInstanceCount = 0
 instanceInactivityAmount = 300
 # List of all  RhinoRESTServer Instances on this machine
 rhinoServerCommand = "RhinoRESTAPIServerCommand"
+rhinoInstanceManager = None
 rhinoServerList = []
 roundRobinCounter = 0
 # List of all Ports (Port 1024 is reserved for Port Forwading)
@@ -42,7 +43,8 @@ availablePorts = [1025, 1026, 1027, 1028, 1029, 1030]
 
 #Retrieves a Free Port from the List of available Ports
 def getFreePort():
-
+    pass    
+"""
     # getting ip-address of host
     ip = socket.gethostbyname(socket.gethostname())
 
@@ -62,9 +64,9 @@ def getFreePort():
 
         serv.close()  # close connection
     
-    return None
+    return None"""
 #Creates a new Rhino Instance
-def createRhinoRESTInstance():
+"""def createRhinoRESTInstance():
     # Server have no token whens we create them since no user is assigned yet to this server
     freePort = getFreePort()
     # Remove Port from available list
@@ -85,7 +87,7 @@ def createRhinoRESTInstance():
     # Get PID from Rhino Instance
     restServer.pid = proc.pid
 
-    return restServer
+    return restServer"""
 
 
 class InstanceWatcher(threading.Thread):
@@ -103,7 +105,8 @@ class InstanceWatcher(threading.Thread):
             self.checkServerUsage()
 
     def checkServerUsage(self):
-        currentTime = datetime.now()
+        pass
+        """currentTime = datetime.now()
         inactiveServers = [server for server in self.instanceList if (
             server.lastUsed + timedelta(seconds=instanceInactivityAmount)) < currentTime]
         global availablePorts
@@ -124,14 +127,21 @@ class InstanceWatcher(threading.Thread):
                       str(item.pid), " and the Port:", str(item.port))
             except:
                 print("Could not kill Rhino Instance with PID:", str(
-                    item.pid), " and the Port:", str(item.port))
-        
+                    item.pid), " and the Port:", str(item.port))"""
+
         #If current Rhino Instances is lower then desired spawn new instances
         if len(rhinoServerList) < alwaysAvailableInstanceCount:
             diff = alwaysAvailableInstanceCount - len(rhinoServerList)
             for i in range(0,diff):
                 pass
                 #createRhinoRESTInstance()
+
+
+class RhinoInstanceManager:
+
+
+    def __init__(self,pid):
+        self.pid = pid
 
 
 class RhinoRESTServer:
@@ -196,24 +206,31 @@ class MyServer(BaseHTTPRequestHandler):
     def do_POST(self):
         #Adds a construction session from the outside, needed?
         if self.path =="/api/construction/sessions/add":
-            createRhinoRESTInstance()
-        #Endpoint for Registering an Rhino Instance at this Sercer
+            pass
+            #createRhinoRESTInstance()
+        #Endpoint for register an new Worker and add it to the available Pool of Worker
         elif self.path == "/registerServer":
             print("REST-Server wants to register here")
             body = json.loads(self.getPOSTBody().decode("utf-8"))
             if body["ready"]:
-                print(self)
                 # Searching the Instance from the RESTRhino Wehere the port matches the submitted port
                 #!Server has to be created before it can be registered!
                 # Should find only one Server
-                server = [
+                instance = RhinoRESTServer(None, None, body["port"], None)
+                instance.ready = body["ready"]
+                instance.lastUsed = datetime.now()
+                instance.host = self.client_address[0]
+                rhinoServerList.append(instance)
+                print("Added Rhino Geometry Worker Instance at port "+str(body["port"])+"to the Pool")
+                """ server = [
                     item for item in rhinoServerList if item.port == body["port"]]
-                server[0].ready = body["ready"]
-                server[0].lastUsed = datetime.now()
-                # Setting Hostname
-                server[0].host = self.client_address[0]
-                print("REST-Server with port" +
-                      str(body["port"])+" is now ready?"+str(server[0].ready))
+
+                if(len(server) == 1):
+                    server[0].ready = body["ready"]
+                    server[0].lastUsed = datetime.now()
+                    # Setting Hostname
+                    server[0].host = self.client_address[0]
+                    print("REST-Server with port" +str(body["port"])+" is now ready?"+str(server[0].ready))"""
 
                 self.send_response(200)
                 self.send_header("Content-type", "text/html")
@@ -223,7 +240,7 @@ class MyServer(BaseHTTPRequestHandler):
 
         #Endpoint for Creating a Gear
         # "/api/construction/gear/createGear
-        elif self.path == "/api/test":
+        elif self.path == "/api/createGear":
             #Use global Round Robin Counter
             global roundRobinCounter
             # Extract POST-Body Part from the Request
@@ -243,7 +260,7 @@ class MyServer(BaseHTTPRequestHandler):
             if assignedServer.ready:
                     #Update Server usage
                     assignedServer.lastUsed = datetime.now()
-                    res = requestSession.post("http://"+str(assignedServer.host)+":"+str(assignedServer.port)+"/test",
+                    res = requestSession.post("http://"+str(assignedServer.host)+":"+str(assignedServer.port)+"/createGear",
                                             headers=self.headers, data=post_body, verify=False)
                     
                     self.send_response(res.status_code)
@@ -256,50 +273,11 @@ class MyServer(BaseHTTPRequestHandler):
             else:
                 self.send_response(500)
                 self.end_headers()
-            """
-            # Finding Server which is related to this token otherwise if no server is found we take one from the available pool
-            bearerServer = [
-                item for item in rhinoServerList if item.token == bearerToken]
-
-            # No Server assigned to a token was found
-            if(len(bearerServer) == 0):
-                # if no Server with token was found we check if a server is free(has no assigned token)
-                freeServer = [
-                    item for item in rhinoServerList if item.token == None]
-                if(len(freeServer) == 0):
-                    assignedServer = createRhinoRESTInstance()
-                    assignedServer.token = bearerToken
-                else:
-                    assignedServer = freeServer[0]
-                    # Set Token for free server to make it in ownerhip of the user
-                    assignedServer.token = bearerToken
-            else:
-                assignedServer = bearerServer[0]
-            # Update Timestamp
-            assignedServer.lastUsed = datetime.now()
-            print("Request from"+bearerToken +
-                  "for Server"+str(assignedServer.port))
-
-            if assignedServer.ready:
-                # Only REDIRECT When Rhino has been started and Plugin informed this Server that its ready to serve
-                res = requestSession.post("http://"+str(assignedServer.host)+":"+str(assignedServer.port)+"/createGear",
-                                          headers=self.headers, data=post_body, verify=False)
-
-                self.send_response(res.status_code)
-                # self.send_header("Transfer-Encoding","chunked") is not supported in this Python-Server Version with HTTP 1 but HTTP 1/1 is not working
-                for k, v in res.headers.items():
-                    if "Transfer-Encoding" not in k:
-                        self.send_header(str(k), str(v))
-                self.end_headers()
-                self.wfile.write(bytes(res.content))
-            else:
-                self.send_response(500)
-                self.end_headers()"""
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=0,
+    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=2,
                         help="The number of the available Rhino Instance at startup")
     args = parser.parse_args()
     
@@ -311,7 +289,10 @@ if __name__ == "__main__":
         pass
         #createRhinoRESTInstance()
     
-    proc = subprocess.Popen("WindowsFormsApp1.exe", universal_newlines=True, shell=False,stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    #Opens the "Main" Rhino Instance Program
+    proc = subprocess.Popen("WindowsFormsApp1.exe", shell=True)
+    rhinoInstanceManager = RhinoInstanceManager(proc.pid)
+    print("Started Rhino Instance Manager at PID"+str(proc.pid))
     #Settings Amount of always available Instances 
     alwaysAvailableInstanceCount = args.rhinoInstanceStartNumber
     # Starting Watcher to see when an Rhino Instance was inactive for a certain period of time e.g 5min in order to manage ressources
@@ -322,10 +303,11 @@ if __name__ == "__main__":
     try:
         webServer.serve_forever()
     except KeyboardInterrupt:
+        os.kill(rhinoInstanceManager.pid,signal.SIGINT)
         # kill all rhino instances when closing server
-        for server in rhinoServerList:
+        """for server in rhinoServerList:
             os.kill(server.pid, signal.SIGINT)
-        pass
+        pass"""
 
     webServer.server_close()
     print("Server stopped.")
