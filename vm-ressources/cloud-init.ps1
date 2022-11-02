@@ -33,7 +33,9 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-i
 pip install requests
 pip install psutil
 #Start Server in new window
-cd "C:\Users\cad-master\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
+$startupPath  = "C:\Users\cad-master\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
+New-Item -Path $startupPath -ItemType Directory
+cd $startupPath
 $batchfile = "startup.ps1"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/startup.ps1" -OutFile $batchfile
 $Username =’cad-master’
