@@ -19,7 +19,8 @@ scp C:\Users\Gabriel\Desktop\rhinogears.rhi cad-master@104.40.226.37:C:\Packages
 "pressureAngle":43.2,
 "coneAngle":175.32
 }
-	
+
+Computer\HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows Azure\ScriptHandler	
 %windir%\system32\sysprep\sysprex.exe
 $currentDir = (Get-Item .).FullName#pwd
  Start-Process -FilePath "C:\Program Files\McNeel\Rhino Installer Engine\x64\rhiexec.exe" -ArgumentList  "$($currentDir)\$("restserver.rhi")", "/silent" -Wait
