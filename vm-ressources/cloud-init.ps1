@@ -34,8 +34,8 @@ pip install requests
 pip install psutil
 #Start Server in new window
 cd "C:\Users\cad-master\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
-$batchfile = "startup.bat"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/startupBatch.bat" -OutFile $batchfile
+$batchfile = "startup.ps1"
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/startup.ps1" -OutFile $batchfile
 $Username =’cad-master’
 $Pass = ‘!cadmaster1337’
 $RegistryPath = ‘HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon’
