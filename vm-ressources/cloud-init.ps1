@@ -46,7 +46,7 @@ pip install psutil
 
 #Restart-Computer
 #$Process = [Diagnostics.Process]::Start("C:\Program Files\Rhino 7\System\Rhino.exe ", "/nosplash /runscript=""_-EditPythonScript Debugging=On _Enter _Enter""")       
-start-process  powershell.exe -ArgumentList "-noExit", "-command", "python server.py"
+#start-process  powershell.exe -ArgumentList "-noExit", "-command", "python server.py"
 $username = "cad-master"
 $password = "!cadmaster1337"
 $secstr = New-Object -TypeName System.Security.SecureString
