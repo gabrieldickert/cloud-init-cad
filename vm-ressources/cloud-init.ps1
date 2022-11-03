@@ -33,21 +33,21 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-i
 pip install requests
 pip install psutil
 #Start Server in new window
-$startupPath  = "C:\Users\cad-master\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup"
-New-Item -Path $startupPath -ItemType Directory
-cd $startupPath
-$batchfile = "startup.ps1"
-Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/startup.ps1" -OutFile $batchfile
-$Username =’cad-master’
-$Pass = ‘!cadmaster1337’
-$RegistryPath = ‘HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon’
-Set-ItemProperty $RegistryPath ‘AutoAdminLogon’ -Value “1” -Type String
-Set-ItemProperty $RegistryPath ‘DefaultUsername’ -Value $Username -type String
-Set-ItemProperty $RegistryPath ‘DefaultPassword’ -Value $Pass -type String
-Restart-Computer
-#$Process = [Diagnostics.Process]::Start("C:\Program Files\Rhino 7\System\Rhino.exe ", "/nosplash /runscript=""_-EditPythonScript Debugging=On _Enter _Enter""")       
-#start-process  powershell.exe -ArgumentList "-noExit", "-command", "python server.py"
-#Hopefully Working!
+#New-Item -Path $startupPath -ItemType Directory
+#cd $startupPath
+#$batchfile = "startup.ps1"
+#Invoke-WebRequest -Uri "https://raw.githubusercontent.com/gabrieldickert/cloud-init-cad/main/vm-ressources/startup.ps1" -OutFile $batchfile
+#$Username =’cad-master’
+#$Pass = ‘!cadmaster1337’
+#$RegistryPath = ‘HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon’
+#Set-ItemProperty $RegistryPath ‘AutoAdminLogon’ -Value “1” -Type String
+#Set-ItemProperty $RegistryPath ‘DefaultUsername’ -Value $Username -type String
+#Set-ItemProperty $RegistryPath ‘DefaultPassword’ -Value $Pass -type String
 
+#Restart-Computer
+#$Process = [Diagnostics.Process]::Start("C:\Program Files\Rhino 7\System\Rhino.exe ", "/nosplash /runscript=""_-EditPythonScript Debugging=On _Enter _Enter""")       
+start-process  powershell.exe -ArgumentList "-noExit", "-command", "python server.py"
+#Hopefully Working!
+exit 0
 
 
