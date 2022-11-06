@@ -19,7 +19,7 @@ import socketserver
 import psutil
 # Since Starting the Rhino-Server can take some time an retry-mechanism is implemented
 requestSession = requests.Session()
-retries = Retry(total=10,
+retries = Retry(total=3,
                 backoff_factor=0.1,
                 status_forcelist=[500, 502, 503, 504])
 
@@ -29,10 +29,17 @@ requestSession.mount('http://', HTTPAdapter(max_retries=retries))
 # Hostname and serverport for this Service-Server which is based on every VM
 hostName = "localhost"
 serverPort = 8081
+"""
+rhinoWorkerNodeSettings = {
+"alwaysAvailableInstanceCount": 0,
+"instanceInactivityAmount" : 300,
+"rhinoRESTServerPluginName": "RhinoRESTAPIServerCommand"
+}"""
+
 alwaysAvailableInstanceCount = 0
 instanceInactivityAmount = 300
-# List of all  RhinoRESTServer Instances on this machine
 rhinoServerCommand = "RhinoRESTAPIServerCommand"
+# List of all  RhinoRESTServer Instances on this machine
 rhinoServerList = []
 roundRobinCounter = 0
 # List of all Ports (Port 1024 is reserved for Port Forwading)
@@ -100,14 +107,24 @@ class InstanceWatcher(threading.Thread):
             # Checking Every x Seconds if Rhino Instance is still used
             time.sleep(1)
             print("Checking Rhino Instances...")
-            self.checkServerUsage()
+            self.checkRhinoServerUsage()
+            self.checkServerHealth()
+    
+    def checkServerHealth(self):
+        for server in self.instanceList:
+            #Only check if server is marked as ready otherwise it should be in bootphase
+            if server.ready:
+                try:
+                    res =requestSession.get("http://"+str(server.host)+":"+str(server.port)+"/health",verify=False)
+                    
+                    if res.status_code != 200:
+                        self.killRhinoInstance(server)
+                except requests.exceptions.ConnectionError:
+                    print('Could not connect to Rhino Instance, trying to kill it')
+                    self.killRhinoInstance(server)
 
-    def checkServerUsage(self):
-        currentTime = datetime.now()
-        inactiveServers = [server for server in self.instanceList if (
-            server.lastUsed + timedelta(seconds=instanceInactivityAmount)) < currentTime]
-        global availablePorts
-        for item in inactiveServers:
+    def killRhinoInstance(self,item):
+            global availablePorts
             try:
                 parent = psutil.Process(item.pid)
                 for child in parent.children():
@@ -117,16 +134,28 @@ class InstanceWatcher(threading.Thread):
                 rhinoServerList.remove(item)
                 #Add Port back to availbale Port List
                 availablePorts.append(item.port)
-                #Could be sorted to start again at first Port but we iterate through
-                #availablePorts = sorted(availablePorts)
-                print(availablePorts)
+                #Could be sorted to start again at first Port but we iterate through 1024-1030 then 1024 again
                 print("Killed Rhino Instance with PID:",
                       str(item.pid), " and the Port:", str(item.port))
             except:
                 print("Could not kill Rhino Instance with PID:", str(
                     item.pid), " and the Port:", str(item.port))
+                #Eventhough it could not killed we assume that the program is already terminated so we remove the instance from the list
+                rhinoServerList.remove(item)
+                availablePorts.append(item.port)
+
+    #checks if the Rhino Worker are still in use
+    def checkRhinoServerUsage(self):
+        currentTime = datetime.now()
+        inactiveServers = [server for server in self.instanceList if (
+            server.lastUsed + timedelta(seconds=instanceInactivityAmount)) < currentTime]
         
-        #If current Rhino Instances is lower then desired spawn new instances
+       
+
+        for item in inactiveServers:
+            self.killRhinoInstance(item)
+
+        #If current Rhino Instances is lower then desired amount spawn new instances
         if len(rhinoServerList) < alwaysAvailableInstanceCount:
             diff = alwaysAvailableInstanceCount - len(rhinoServerList)
             for i in range(0,diff):
@@ -171,14 +200,14 @@ class MyServer(BaseHTTPRequestHandler):
             self.send_header("Content-type", "application/json")
             self.end_headers()
             self.wfile.write(bytes(json.dumps({"status":"ok"}), "utf-8"))
-        # Returns the Amount of current active Sessions on this Machine
-        if self.path == "/api/construction/sessions/all":
+        # Returns the Amount of current workers on this Machine
+        if self.path == "/api/construction/workers/all":
             self.send_response(200)
             self.send_header("Content-type", "application/json")
             self.end_headers()
             self.wfile.write(bytes(json.dumps(
                 [rhinoInstance.__dict__ for rhinoInstance in rhinoServerList], indent=4, sort_keys=True, default=str), "utf-8"))
-        #Returns the Status of the Server
+        #Returns the Status of the VM-Server
         if self.path == "/api/status":
             self.send_response(200)
             self.send_header("Content-type", "application/json")
@@ -189,30 +218,31 @@ class MyServer(BaseHTTPRequestHandler):
         #Adds a construction session from the outside, needed?
         if self.path =="/api/construction/sessions/add":
             createRhinoRESTInstance()
-        #Endpoint for Registering an Rhino Instance at this Sercer
+        #Endpoint for Registering an Rhino Instance at this Server
         elif self.path == "/registerServer":
             print("REST-Server wants to register here")
             body = json.loads(self.getPOSTBody().decode("utf-8"))
             if body["ready"]:
                 print(self)
-                # Searching the Instance from the RESTRhino Wehere the port matches the submitted port
+                # Searching the Instance from the RESTRhino where the port matches the submitted port
                 #!Server has to be created before it can be registered!
                 # Should find only one Server
                 server = [
                     item for item in rhinoServerList if item.port == body["port"]]
-                server[0].ready = body["ready"]
-                server[0].lastUsed = datetime.now()
-                # Setting Hostname
-                server[0].host = self.client_address[0]
-                print("REST-Server with port" +
-                      str(body["port"])+" is now ready?"+str(server[0].ready))
 
-                self.send_response(200)
-                self.send_header("Content-type", "text/html")
+                if(len(server) == 1):
+                    server[0].ready = body["ready"]
+                    server[0].lastUsed = datetime.now()
+                    # Setting Hostname
+                    server[0].host = self.client_address[0]
+                    print("REST-Server with port" +
+                        str(body["port"])+" is now ready?"+str(server[0].ready))
+
+                    self.send_response(200)
+                    self.end_headers()
+                #could not register rhino instance
+                self.send_response(500)
                 self.end_headers()
-                self.wfile.write(
-                    bytes("<html><head><title>Success</title></head>", "utf-8"))
-
         #Endpoint for Creating a Gear
         elif self.path == "/api/construction/gear/createGear":
             #Use global Round Robin Counter
@@ -223,7 +253,7 @@ class MyServer(BaseHTTPRequestHandler):
 
             # Assuming Token is always provided since the request gets forwared form the main api server
             bearerToken = self.headers.get("authorization")
-
+            #assign an instance for this request
             assignedServer = rhinoServerList[roundRobinCounter%alwaysAvailableInstanceCount]
             #Increase Value for Round Robin
             roundRobinCounter += 1
@@ -290,14 +320,15 @@ class MyServer(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=2,
+    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=4,
                         help="The number of the available Rhino Instance at startup")
     args = parser.parse_args()
     
     webServer = ThreadedHTTPServer((hostName, serverPort), MyServer)
     print("Server started http://%s:%s" % (hostName, serverPort))
     """setup some rhino instances when booting the server to be instantly ready.
-    The amount depends heavily on the VM capabilities"""
+    The amount depends heavily on the VM capabilities. A Good Rule is currently one Rhino Instance per 2 CPU-Cores
+    """
     for i in range(0, args.rhinoInstanceStartNumber):
         createRhinoRESTInstance()
     #Settings Amount of always available Instances 
@@ -312,7 +343,10 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         # kill all rhino instances when closing server
         for server in rhinoServerList:
-            os.kill(server.pid, signal.SIGINT)
+            try:
+                os.kill(server.pid, signal.SIGINT)
+            except:
+                print("could not kill rhino instance when closing the program")
         pass
 
     webServer.server_close()
