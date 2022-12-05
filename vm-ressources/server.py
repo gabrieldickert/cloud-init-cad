@@ -109,7 +109,7 @@ class InstanceWatcher(threading.Thread):
             print("Checking Rhino Instances...")
             self.checkRhinoServerUsage()
             self.checkServerHealth()
-    
+    #Sends Health Probes to an Rhino Instance and if it cant be reachedt the instance gets terminated
     def checkServerHealth(self):
         for server in self.instanceList:
             #Only check if server is marked as ready otherwise it should be in bootphase
@@ -169,6 +169,7 @@ class RhinoRESTServer:
         self.host = host
         self.port = port
         self.pid = pid
+        self.inUse = False
         self.ready = False
         # Creating Datetime
         self.lastUsed = datetime.now()
@@ -254,7 +255,11 @@ class MyServer(BaseHTTPRequestHandler):
             # Assuming Token is always provided since the request gets forwared form the main api server
             bearerToken = self.headers.get("authorization")
             #assign an instance for this request
+	    
             assignedServer = rhinoServerList[roundRobinCounter%alwaysAvailableInstanceCount]
+
+            while assignedServer.inUse:
+                assignedServer = rhinoServerList[roundRobinCounter%alwaysAvailableInstanceCount]
             #Increase Value for Round Robin
             roundRobinCounter += 1
             #Resetting Counter to 0 
@@ -262,6 +267,7 @@ class MyServer(BaseHTTPRequestHandler):
                 roundRobinCounter = 0
             # Only REDIRECT When Rhino has been started and Plugin informed this Server that its ready to serve
             if assignedServer.ready:
+                    assignedServer.inUse = True
                     #Update Server usage
                     assignedServer.lastUsed = datetime.now()
                     res = requestSession.post("http://"+str(assignedServer.host)+":"+str(assignedServer.port)+"/createGear",
@@ -274,6 +280,7 @@ class MyServer(BaseHTTPRequestHandler):
                             self.send_header(str(k), str(v))
                     self.end_headers()
                     self.wfile.write(bytes(res.content))
+                    assignedServer.inUse = False
             else:
                 self.send_response(500)
                 self.end_headers()
@@ -320,7 +327,7 @@ class MyServer(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=4,
+    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=3,
                         help="The number of the available Rhino Instance at startup")
     args = parser.parse_args()
     
