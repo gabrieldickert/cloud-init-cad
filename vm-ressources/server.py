@@ -27,7 +27,7 @@ requestSession.mount('http://', HTTPAdapter(max_retries=retries))
 
 # NOTE: needs to gets executed in admin mode otherwise rhino rest api cant be started and crashed (is always given in the Cloud)
 # Hostname and serverport for this Service-Server which is based on every VM
-hostName = "localhost"
+hostName = "127.0.0.1"
 serverPort = 8081
 """
 rhinoWorkerNodeSettings = {
@@ -181,6 +181,10 @@ class ThreadedHTTPServer(socketserver.ThreadingMixIn, HTTPServer):
 
 
 class MyServer(BaseHTTPRequestHandler):
+    def address_string(self):
+        host, port = self.client_address[:2]
+        #return socket.getfqdn(host)
+        return host	
     #protocol_version = 'HTTP/1.1'
     def parse_headers(self, headers):
         req_header = {}
@@ -197,10 +201,17 @@ class MyServer(BaseHTTPRequestHandler):
     def do_GET(self):
         #Standard Path for Health-Probes for Load Balancer
         if self.path=="/":
-            self.send_response(200)
-            self.send_header("Content-type", "application/json")
-            self.end_headers()
-            self.wfile.write(bytes(json.dumps({"status":"ok"}), "utf-8"))
+            server = [item for item in rhinoServerList if item.ready == True]
+            if(len(server) > 0):
+                self.send_response(200)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(bytes(json.dumps({"status":"ok"}), "utf-8")) 
+            else:
+                self.send_response(503)
+                self.send_header("Content-type", "application/json")
+                self.end_headers()
+                self.wfile.write(bytes(json.dumps({"status":"error, no CAD-Workers Ready"}), "utf-8")) 
         # Returns the Amount of current workers on this Machine
         if self.path == "/api/construction/workers/all":
             self.send_response(200)
@@ -327,7 +338,7 @@ class MyServer(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=3,
+    parser.add_argument("--rhinoInstanceStartNumber", type=int, default=int(psutil.cpu_count()/2),
                         help="The number of the available Rhino Instance at startup")
     args = parser.parse_args()
     
@@ -340,7 +351,6 @@ if __name__ == "__main__":
         createRhinoRESTInstance()
     #Settings Amount of always available Instances 
     alwaysAvailableInstanceCount = args.rhinoInstanceStartNumber
-    # Starting Watcher to see when an Rhino Instance was inactive for a certain period of time e.g 5min in order to manage ressources
     instanceWatcher = InstanceWatcher()
     instanceWatcher.daemon = True
     instanceWatcher.start()
